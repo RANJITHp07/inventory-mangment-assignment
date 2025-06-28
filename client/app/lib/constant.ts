@@ -1,1 +1,1 @@
-export const BACKEND_API_URL = process.env.PUBLIC_API_URL || "http://localhost:8000/api";
+export const BACKEND_API_URL = "https://inventory-mangment-assignment-1.onrender.com" 
