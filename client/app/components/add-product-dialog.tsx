@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { BACKEND_API_URL } from "@/lib/constant"
 
 interface AddProductDialogProps {
     children: React.ReactNode,
@@ -33,7 +34,7 @@ export function AddProductDialog({ children, action, product, fetchProducts }: A
             e.preventDefault()
 
             if (product) {
-                const response = await fetch(`http://localhost:8000/api/products/${product.id}`, {
+                const response = await fetch(`${BACKEND_API_URL}/products/${product.id}`, {
                     method: "PUT",
                     headers: {
                         "Content-Type": "application/json",
@@ -53,7 +54,7 @@ export function AddProductDialog({ children, action, product, fetchProducts }: A
                 fetchProducts()
                 alert("Product edited successfully!")
             } else {
-                const response = await fetch("http://localhost:8000/api/products", {
+                const response = await fetch(`${BACKEND_API_URL}/products`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

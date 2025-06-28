@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreHorizontal, Edit, Trash2, Eye, Pen, Trash } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AddProductDialog } from "./add-product-dialog"
+import { BACKEND_API_URL } from "@/lib/constant"
 
 // Mock data - in Remix this would come from a loader
 const products = [
@@ -221,7 +222,7 @@ export function ProductsTable() {
     }
 
     const fetchProducts = () => {
-        fetch(`http://localhost:8000/api/products?page=${currentPage}& limit= 10`)
+        fetch(`${BACKEND_API_URL}/products?page=${currentPage}& limit= 10`)
             .then((res) => res.json())
             .then((data) => {
                 setProducts(data.data);
@@ -235,7 +236,7 @@ export function ProductsTable() {
     }
 
     const deleteProduct = async (id: string) => {
-        const response = await fetch(`http://localhost:8000/api/products/${id}`, {
+        const response = await fetch(`${BACKEND_API_URL}/products/${id}`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",

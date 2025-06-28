@@ -9,6 +9,7 @@ import { Plus } from "lucide-react"
 import type { LoaderFunction } from "@remix-run/node"
 import { json } from "@remix-run/node"
 import { useLoaderData } from "@remix-run/react"
+import { BACKEND_API_URL } from "@/lib/constant"
 
 
 
@@ -23,7 +24,7 @@ type Stats = {
 export const loader: LoaderFunction = async () => {
   // Call your separate backend API endpoint here
   try {
-    const res = await fetch("http://localhost:8000/api/products/summary")
+    const res = await fetch(`${BACKEND_API_URL}/products/summary`)
     if (!res.ok) {
       throw new Response("Failed to fetch product stats", { status: res.status })
     }
