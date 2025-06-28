@@ -12,8 +12,7 @@ const port = process.env.PORT || 8000;
 // Use CORS middleware before your routes
 app.use(cors({
   origin: "*", // Allow all origins (change this in production to your frontend URL)
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed methods
-  allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
+  credentials:true
 }));
 
 app.use(express.json()); // Parse JSON bodies
