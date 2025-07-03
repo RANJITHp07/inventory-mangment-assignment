@@ -1,97 +1,41 @@
-"use client"
-
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { BACKEND_API_URL } from "@/lib/constant"
+import { useFetcher } from "@remix-run/react"
+
 
 interface AddProductDialogProps {
     children: React.ReactNode,
-    action?: string,
-    product?: any
-    fetchProducts?: any
+    product?: {
+        id: string
+        name: string
+        quantity: number
+        price: number
+        category: string
+        minStock: number
+        sku: string
+        description: string
+    }
+
 }
 
-export function AddProductDialog({ children, action, product, fetchProducts }: AddProductDialogProps) {
+export function AddProductDialog({ children, product }: AddProductDialogProps) {
+    const fetcher = useFetcher();
     const [open, setOpen] = useState(false)
-    const [formData, setFormData] = useState({
-        name: product?.name ?? "",
-        sku: product?.sku ?? "",
-        category: product?.category ?? "",
-        quantity: product?.quantity ?? "",
-        price: product?.price ?? "",
-        description: product?.description ?? "",
-        minStock: product?.minStock ?? "",
-    })
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        try {
-            e.preventDefault()
+    useEffect(() => {
+        if (fetcher.state === "idle" && (fetcher?.data as any)?.success) {
+            setOpen(false);
+            alert((fetcher?.data as any)?.message)
 
-            if (product) {
-                const response = await fetch(`${BACKEND_API_URL}/products/${product.id}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(formData),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error("Error:", errorData.error);
-                    // handle error: show message to user, etc.
-                    return;
-                }
-
-                const createdProduct = await response.json();
-                console.log("edit created:", createdProduct);
-                fetchProducts()
-                alert("Product edited successfully!")
-            } else {
-                const response = await fetch(`${BACKEND_API_URL}/products`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(formData),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error("Error:", errorData.error);
-                    // handle error: show message to user, etc.
-                    return;
-                }
-
-                const createdProduct = await response.json();
-                console.log("Product created:", createdProduct);
-                window.location.reload()
-                alert("Product saved successfully!")
-            }
-            // In Remix, this would be handled by an action
-            setOpen(false)
-            // Reset form
-            setFormData({
-                name: "",
-                sku: "",
-                category: "",
-                quantity: "",
-                price: "",
-                description: "",
-                minStock: "",
-            })
-        } catch (error) {
-
-            console.log(error)
+            fetcher.load("/");
         }
-
-    }
+    }, [fetcher.state, fetcher.data]);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -100,15 +44,16 @@ export function AddProductDialog({ children, action, product, fetchProducts }: A
                 <DialogHeader>
                     <DialogTitle>Add New Product</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
+
+                <fetcher.Form method="post" action="." className=" space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Product Name</Label>
                             <Input
                                 id="name"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                name="name"
                                 placeholder="Enter product name"
+                                defaultValue={product?.name}
                                 required
                             />
                         </div>
@@ -116,8 +61,8 @@ export function AddProductDialog({ children, action, product, fetchProducts }: A
                             <Label htmlFor="sku">SKU</Label>
                             <Input
                                 id="sku"
-                                value={formData.sku}
-                                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                                name="sku"
+                                defaultValue={product?.sku}
                                 placeholder="Enter SKU"
                                 required
                             />
@@ -126,7 +71,7 @@ export function AddProductDialog({ children, action, product, fetchProducts }: A
 
                     <div className="space-y-2">
                         <Label htmlFor="category">Category</Label>
-                        <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                        <Select name="category" defaultValue={product?.category}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select category" />
                             </SelectTrigger>
@@ -145,24 +90,24 @@ export function AddProductDialog({ children, action, product, fetchProducts }: A
                             <Label htmlFor="quantity">Quantity</Label>
                             <Input
                                 id="quantity"
+                                name="quantity"
                                 type="number"
-                                value={formData.quantity}
-                                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                                 placeholder="0"
                                 min="0"
                                 required
+                                defaultValue={product?.quantity}
                             />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="price">Price ($)</Label>
                             <Input
                                 id="price"
+                                name="price"
                                 type="number"
                                 step="0.01"
-                                value={formData.price}
-                                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                                 placeholder="0.00"
                                 min="0"
+                                defaultValue={product?.price}
                                 required
                             />
                         </div>
@@ -170,11 +115,11 @@ export function AddProductDialog({ children, action, product, fetchProducts }: A
                             <Label htmlFor="minStock">Min Stock</Label>
                             <Input
                                 id="minStock"
+                                name="minStock"
                                 type="number"
-                                value={formData.minStock}
-                                onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
                                 placeholder="10"
                                 min="0"
+                                defaultValue={product?.minStock}
                             />
                         </div>
                     </div>
@@ -183,21 +128,29 @@ export function AddProductDialog({ children, action, product, fetchProducts }: A
                         <Label htmlFor="description">Description</Label>
                         <Textarea
                             id="description"
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            name="description"
                             placeholder="Enter product description"
                             rows={3}
+                            defaultValue={product?.description}
                         />
                     </div>
+                    <input type="hidden" name="intent" value={product ? 'edit' : "add"} />
+                    <input type="hidden" name="productId" value={product ? product.id : ""} />
 
-                    <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    < div className="flex justify-end gap-2 pt-4">
+                        <Button type="button" disabled={fetcher.state === "submitting"} variant="outline" onClick={() => setOpen(false)}>
                             Cancel
                         </Button>
-                        <Button type="submit">{product ? "Edit Product" : "Add Product"}</Button>
+                        <Button type="submit" disabled={fetcher.state === "submitting"}>
+                            {fetcher.state === "submitting"
+                                ? "Submitting..."
+                                : product
+                                    ? "Edit Product"
+                                    : "Add Product"}
+                        </Button>
                     </div>
-                </form>
-            </DialogContent>
-        </Dialog>
+                </fetcher.Form>
+            </DialogContent >
+        </Dialog >
     )
 }

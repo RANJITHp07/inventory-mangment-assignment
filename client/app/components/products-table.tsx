@@ -1,207 +1,47 @@
-"use client"
-
-import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Edit, Trash2, Eye, Pen, Trash } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Pen, Trash } from "lucide-react"
 import { AddProductDialog } from "./add-product-dialog"
-import { BACKEND_API_URL } from "@/lib/constant"
+import { Product } from "@/routes/_index"
+import { useSearchParams } from "@remix-run/react";
+import { useFetcher } from "@remix-run/react"
+import { useEffect } from "react"
 
-// Mock data - in Remix this would come from a loader
-const products = [
+type Props = {
+    products: Product[],
+    pagination:
     {
-        id: "1",
-        name: "Wireless Headphones",
-        sku: "WH-001",
-        category: "Electronics",
-        quantity: 45,
-        price: 99.99,
-        status: "In Stock",
-    },
-    {
-        id: "2",
-        name: "Coffee Mug",
-        sku: "CM-002",
-        category: "Kitchen",
-        quantity: 8,
-        price: 12.99,
-        status: "Low Stock",
-    },
-    {
-        id: "3",
-        name: "Laptop Stand",
-        sku: "LS-003",
-        category: "Office",
-        quantity: 0,
-        price: 49.99,
-        status: "Out of Stock",
-    },
-    {
-        id: "4",
-        name: "Desk Lamp",
-        sku: "DL-004",
-        category: "Office",
-        quantity: 23,
-        price: 34.99,
-        status: "In Stock",
-    },
-    {
-        id: "5",
-        name: "Water Bottle",
-        sku: "WB-005",
-        category: "Sports",
-        quantity: 67,
-        price: 19.99,
-        status: "In Stock",
-    },
-    {
-        id: "6",
-        name: "Bluetooth Speaker",
-        sku: "BS-006",
-        category: "Electronics",
-        quantity: 32,
-        price: 79.99,
-        status: "In Stock",
-    },
-    {
-        id: "7",
-        name: "Yoga Mat",
-        sku: "YM-007",
-        category: "Sports",
-        quantity: 15,
-        price: 29.99,
-        status: "In Stock",
-    },
-    {
-        id: "8",
-        name: "Phone Case",
-        sku: "PC-008",
-        category: "Electronics",
-        quantity: 3,
-        price: 24.99,
-        status: "Low Stock",
-    },
-    {
-        id: "9",
-        name: "Notebook Set",
-        sku: "NS-009",
-        category: "Office",
-        quantity: 89,
-        price: 15.99,
-        status: "In Stock",
-    },
-    {
-        id: "10",
-        name: "Kitchen Scale",
-        sku: "KS-010",
-        category: "Kitchen",
-        quantity: 0,
-        price: 39.99,
-        status: "Out of Stock",
-    },
-    {
-        id: "11",
-        name: "Wireless Mouse",
-        sku: "WM-011",
-        category: "Electronics",
-        quantity: 56,
-        price: 29.99,
-        status: "In Stock",
-    },
-    {
-        id: "12",
-        name: "Travel Mug",
-        sku: "TM-012",
-        category: "Kitchen",
-        quantity: 7,
-        price: 22.99,
-        status: "Low Stock",
-    },
-    {
-        id: "13",
-        name: "Desk Organizer",
-        sku: "DO-013",
-        category: "Office",
-        quantity: 41,
-        price: 18.99,
-        status: "In Stock",
-    },
-    {
-        id: "14",
-        name: "Fitness Tracker",
-        sku: "FT-014",
-        category: "Sports",
-        quantity: 28,
-        price: 149.99,
-        status: "In Stock",
-    },
-    {
-        id: "15",
-        name: "USB Cable",
-        sku: "UC-015",
-        category: "Electronics",
-        quantity: 0,
-        price: 9.99,
-        status: "Out of Stock",
-    },
-    {
-        id: "16",
-        name: "Ceramic Bowl",
-        sku: "CB-016",
-        category: "Kitchen",
-        quantity: 34,
-        price: 16.99,
-        status: "In Stock",
-    },
-    {
-        id: "17",
-        name: "Pen Holder",
-        sku: "PH-017",
-        category: "Office",
-        quantity: 9,
-        price: 8.99,
-        status: "Low Stock",
-    },
-    {
-        id: "18",
-        name: "Resistance Bands",
-        sku: "RB-018",
-        category: "Sports",
-        quantity: 22,
-        price: 19.99,
-        status: "In Stock",
-    },
-    {
-        id: "19",
-        name: "Tablet Stand",
-        sku: "TS-019",
-        category: "Electronics",
-        quantity: 18,
-        price: 35.99,
-        status: "In Stock",
-    },
-    {
-        id: "20",
-        name: "Cutting Board",
-        sku: "CB-020",
-        category: "Kitchen",
-        quantity: 12,
-        price: 25.99,
-        status: "In Stock",
-    },
-]
+        totalItems: number
+        totalPages: number
+        currentPage: number
+        pageSize: number
+    }
+}
 
-export function ProductsTable() {
-    const [products, setProducts] = useState<string[]>([])
-    const [currentPage, setCurrentPage] = useState(1)
-    const [pageSize, setPageSize] = useState(10)
-    const [totalPages, settotalPages] = useState(1)
-    const [totalItems, setTotalItems] = useState(0)
-    const [isDeleted, setIsDeleted] = useState(true)
+export function ProductsTable({ products, pagination }: Props) {
+    const fetcher = useFetcher();
+    const [searchParams, setSearchParams] = useSearchParams();
 
+    const currentPage = Number(searchParams.get("page") || 1);
+
+    const handleSetPage = (page: number) => {
+        searchParams.set("page", String(page));
+        setSearchParams(searchParams);
+    };
+
+    const handleNextPage = () => {
+        const nextPage = currentPage + 1;
+        const newSearchParams = new URLSearchParams(searchParams.toString());
+        newSearchParams.set("page", String(nextPage));
+        setSearchParams(newSearchParams);
+    };
+
+    const handlePreviousPage = () => {
+        const prevPage = Math.max(1, currentPage - 1);
+        searchParams.set("page", String(prevPage));
+        setSearchParams(searchParams);
+    };
 
     const getStatusBadge = (minStock: number, quantity: number) => {
         if (quantity === 0) {
@@ -221,42 +61,13 @@ export function ProductsTable() {
         }
     }
 
-    const fetchProducts = () => {
-        fetch(`${BACKEND_API_URL}/products?page=${currentPage}& limit= 10`)
-            .then((res) => res.json())
-            .then((data) => {
-                setProducts(data.data);
-                settotalPages(data?.pagination?.totalPages)
-                setTotalItems(data?.pagination?.totalItems)
-
-            })
-            .catch((error) => {
-                console.error("Error fetching products:", error);
-            });
-    }
-
-    const deleteProduct = async (id: string) => {
-        const response = await fetch(`${BACKEND_API_URL}/products/${id}`, {
-            method: "DELETE",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Error:", errorData.error);
-            // handle error: show message to user, etc.
-            return;
-        }
-
-        fetchProducts()
-        alert("Product deleted successfully!")
-    }
-
     useEffect(() => {
-        fetchProducts()
-    }, [currentPage]);
+        if (fetcher.state === "idle" && (fetcher?.data as any)?.success) {
+            alert((fetcher?.data as any)?.message)
+
+            fetcher.load("/");
+        }
+    }, [fetcher.state, fetcher.data]);
 
 
     return (
@@ -274,7 +85,7 @@ export function ProductsTable() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {products.map((product: any) => (
+                    {products?.map((product: any) => (
                         <TableRow key={product.id}>
                             <TableCell className="font-medium">{product?.name}</TableCell>
                             <TableCell className="text-muted-foreground">{product?.sku}</TableCell>
@@ -284,10 +95,16 @@ export function ProductsTable() {
                             <TableCell>{getStatusBadge(product?.minStock, product?.quantity)}</TableCell>
                             <TableCell>
                                 <div className="flex flex-row gap-4">
-                                    <AddProductDialog product={product} fetchProducts={fetchProducts}>
+                                    <AddProductDialog product={product}>
                                         <Pen className="h-5 w-5 text-slate-600 cursor-pointer" />
                                     </AddProductDialog>
-                                    <Trash className="h-5 w-5 text-slate-600 cursor-pointer" onClick={() => deleteProduct(product.id)} />
+                                    <fetcher.Form method="post" action="/?index">
+                                        <input type="hidden" name="intent" value="delete" />
+                                        <input type="hidden" name="productId" value={product.id} />
+                                        <button type="submit">
+                                            <Trash className="w-4 h-4 text-red-500 cursor-pointer" />
+                                        </button>
+                                    </fetcher.Form>
                                 </div>
 
                             </TableCell>
@@ -305,48 +122,32 @@ export function ProductsTable() {
                 </div>
 
                 <div className="flex items-center space-x-6">
-                    {/* <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium">Rows per page</p>
-                        <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
-                            <SelectTrigger className="h-8 w-[70px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent side="top">
-                                <SelectItem value="5">5</SelectItem>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div> */}
-
                     <div className="flex items-center space-x-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setCurrentPage(currentPage - 1)}
-                            disabled={currentPage <= 1}
+                            onClick={handlePreviousPage}
+                            disabled={pagination.currentPage <= 1}
                         >
                             Previous
                         </Button>
 
                         <div className="flex items-center space-x-1">
-                            {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                .filter((page) => {
-                                    // Show first page, last page, current page, and pages around current
-                                    return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1
+                            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                                ?.filter((page) => {
+                                    return page === 1 || page === pagination.totalPages || Math.abs(page - pagination.currentPage) <= 1
                                 })
-                                .map((page, index, array) => {
+                                ?.map((page, index, array) => {
                                     // Add ellipsis if there's a gap
                                     const showEllipsis = index > 0 && page - array[index - 1] > 1
                                     return (
                                         <div key={page} className="flex items-center">
                                             {showEllipsis && <span className="px-2 text-muted-foreground">...</span>}
                                             <Button
-                                                variant={currentPage === page ? "default" : "outline"}
+                                                variant={pagination.currentPage === page ? "default" : "outline"}
                                                 size="sm"
                                                 className="h-8 w-8 p-0"
-                                                onClick={() => setCurrentPage(page)}
+                                                onClick={() => handleSetPage(page)}
                                             >
                                                 {page}
                                             </Button>
@@ -358,8 +159,11 @@ export function ProductsTable() {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setCurrentPage(currentPage + 1)}
-                            disabled={currentPage >= totalPages}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleNextPage();
+                            }}
+                            disabled={pagination.currentPage >= pagination.totalPages}
                         >
                             Next
                         </Button>

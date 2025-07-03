@@ -1,1 +1,1 @@
-export const BACKEND_API_URL = "https://inventory-mangment-assignment-1.onrender.com/api" 
+export const BACKEND_API_URL = "http://localhost:3000" 
