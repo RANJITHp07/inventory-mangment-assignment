@@ -9,7 +9,8 @@
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "remix-serve ./build/server/index.js",
     "typecheck": "tsc",
-    "server:dev": "nodemon --watch server --ext ts --exec tsx server/index.ts"
+    "server:dev": "nodemon --watch server --ext ts --exec tsx server/index.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.11.0",
