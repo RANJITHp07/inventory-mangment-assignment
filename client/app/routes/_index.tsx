@@ -11,6 +11,8 @@ import { json } from "@remix-run/node"
 import { Await, useLoaderData } from "@remix-run/react"
 import { BACKEND_API_URL } from "@/lib/constant"
 import { ProductsErrorFallback } from "@/components/fallbacks/productsErrorFallback"
+import { db } from "prisma/seed"
+import { Decimal } from "@prisma/client/runtime/library"
 
 
 
@@ -45,143 +47,135 @@ type LoaderData = {
 
 
 //loader
-export const loader: LoaderFunction = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-  const page = url.searchParams.get("page") || "1";
-  const limit = url.searchParams.get("limit") || "10";
+  const page = parseInt(url.searchParams.get("page") || "1");
+  const limit = parseInt(url.searchParams.get("limit") || "10");
+  const skip = (page - 1) * limit;
 
-  const statsPromise = fetch(`${BACKEND_API_URL}/api/products/summary`, {
-    headers: {
-      'Cache-Control': 'max-age=300',
-    }
-  }).then(async (res) => {
-    if (!res.ok) {
-      throw new Response("Failed to fetch product stats", { status: res.status })
-    }
-    const data: { data: Stats } = await res.json()
-    return data.data
-  }).catch(() => ({
-    totalQuantity: 0,
-    totalValue: 0,
-    lowStock: 0,
-    outOfStock: 0,
-  }))
+  // 👇 Async fetch with pagination metadata included
+  const productsPromise = (async () => {
+    const [products, totalItems] = await Promise.all([
+      db.product.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+      }),
+      db.product.count(),
+    ]);
 
-  const productsPromise = fetch(
-    `${BACKEND_API_URL}/api/products?page=${page}&limit=${limit}`,
+    const productsFormatted = products.map(product => ({
+      ...product,
+      price: product.price.toString(),  // convert Decimal to string
+    }));
 
-  ).then(async (res) => {
-    if (!res.ok) {
-      throw new Error("Failed to fetch products")
-    }
-    const data = await res.json()
-    return data || {
-      data: [],
+    return {
+      data: productsFormatted,
       pagination: {
-        totalItems: 0,
-        totalPages: 0,
-        currentPage: 0,
-        pageSize: 0,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: page,
+        pageSize: limit,
+      },
+    };
+  })();
 
-      }
-    }
-  })
+  // 👇 Summary Promise
+  const summaryPromise = (async () => {
+    const totalQuantityResult = await db.product.aggregate({
+      _sum: { quantity: true },
+    });
 
-  const stats = await statsPromise
+    const products: any = await db.product.findMany({
+      select: { price: true, quantity: true, minStock: true },
+    });
+
+    const totalValue = products.reduce((sum: number, p: any) => {
+      const price = p.price instanceof Decimal ? p.price.toNumber() : Number(p.price ?? 0);
+      const quantity = Number(p.quantity ?? 0);
+      return sum + price * quantity;
+    }, 0);
+
+    const lowStockCount = products.filter(
+      (p: any) => p.quantity > 0 && p.quantity < p.minStock
+    ).length;
+
+    const outOfStockCount = await db.product.count({
+      where: { quantity: 0 },
+    });
+
+    return {
+      totalQuantity: totalQuantityResult._sum.quantity ?? 0,
+      totalValue,
+      lowStockCount: lowStockCount,
+      outOfStockCount: outOfStockCount,
+    };
+  })();
 
   return defer({
-    stats,
     productsPromise,
-  })
-}
+    stats: summaryPromise,
+  });
+};
 
 //actions
 export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
 
-  const entries = Object.fromEntries(formData.entries());
+  const data = Object.fromEntries(formData.entries());
 
   const intent = formData.get("intent");
   const productId = formData.get("productId"); // if editing
 
   try {
     if (intent === "edit" && productId) {
-      const response = await fetch(`${BACKEND_API_URL}/api/products/${productId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const product = await db.product.update({
+        where: { id: Number(productId) },
+        data: {
+          name: String(data.name),
+          sku: String(data.sku),
+          description: String(data.description),
+          category: String(data.category).toUpperCase() as any,
+          quantity: Number(data.quantity),
+          price: Number(data.price),
+          minStock: Number(data.minStock),
+          status:
+            Number(data.quantity) > Number(data.minStock)
+              ? "IN_STOCK"
+              : "LOW_STOCK",
         },
-        body: JSON.stringify(entries)
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error:", errorData.error);
-        return json({
-          success: false,
-          error: errorData.error || "Failed to update product"
-        }, { status: 400 });
-      }
-
-      const updatedProduct = await response.json();
-      console.log("Product updated:", updatedProduct);
-
-      return json({
-        success: true,
-        message: "Product updated successfully!",
-        product: updatedProduct
-      });
+      return json({ success: true, message: "Product updated successfully", product });
 
     } else if (intent === "add") {
       // Create new product
-      const response = await fetch(`${BACKEND_API_URL}/api/products`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const product = await db.product.create({
+        data: {
+          name: String(data.name),
+          sku: String(data.sku),
+          description: String(data.description),
+          category: String(data.category).toUpperCase() as any,
+          quantity: Number(data.quantity),
+          price: Number(data.price),
+          minStock: Number(data.minStock),
+          status:
+            Number(data.quantity) > Number(data.minStock)
+              ? "IN_STOCK"
+              : "LOW_STOCK",
         },
-        body: JSON.stringify(entries)
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error:", errorData.error);
-        return json({
-          success: false,
-          error: errorData.error || "Failed to create product"
-        }, { status: 400 });
-      }
-
-      const createdProduct = await response.json();
-      console.log("Product created:", createdProduct);
-
       return json({
-        success: true,
-        message: "Product created successfully!",
-        product: createdProduct
+        success: true, message: "Product added successfully", product
       });
     } else if (intent === "delete" && productId) {
-      const response = await fetch(`${BACKEND_API_URL}/api/products/${productId}`, {
-        method: "DELETE",
-
+      await db.product.delete({
+        where: { id: Number(productId) },
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Error:", errorData.error);
-        return json({
-          success: false,
-          error: errorData.error || "Failed to create product"
-        }, { status: 400 });
-      }
-
-      const deletedProduct = await response.json();
-      console.log("Product created:", deletedProduct);
-
-      return json({
-        success: true,
-        message: "Product deleted successfully!",
-      });
+      return json({ success: true, message: "Product deleted successfully" });
     }
+
+    return json({ success: false, error: "Unknown intent" }, { status: 400 });
 
   } catch (error) {
     console.error("Network error:", error);
@@ -215,7 +209,9 @@ export default function InventoryDashboard() {
 
         {/* Dashboard Stats */}
         <Suspense fallback={<div className="h-32 bg-white rounded-lg animate-pulse" />}>
-          <DashboardStats stats={stats} />
+          <Await resolve={stats}>
+            {(resolvedStats: Stats) => <DashboardStats stats={resolvedStats} />}
+          </Await>
         </Suspense>
 
         <div className="grid grid-cols-1  gap-6 mt-8">
