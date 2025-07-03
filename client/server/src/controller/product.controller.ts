@@ -1,10 +1,11 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { Request, Response } from "express";
-import prisma from "../../prisma/seed";
+import { db } from "../../../prisma/seed";
 
 
 export const createProduct= async (req:Request, res:Response) => {
     try {
+      console.log(req.body)
       const {
         name,
         sku,
@@ -29,7 +30,7 @@ export const createProduct= async (req:Request, res:Response) => {
       }
   
       // Check if product with SKU already exists
-      const existingProduct = await prisma.product.findUnique({
+      const existingProduct = await db.product.findUnique({
         where: { sku },
       });
   
@@ -38,7 +39,7 @@ export const createProduct= async (req:Request, res:Response) => {
       }
   
       // Create new product
-      const product = await prisma.product.create({
+      const product = await db.product.create({
         data: {
           name,
           sku,
@@ -65,10 +66,10 @@ export const getProducts = async (req: Request, res: Response) => {
       const skip = (page - 1) * limit;
   
       // Get total count
-      const total = await prisma.product.count();
+      const total = await db.product.count();
   
       // Get products with pagination
-      const products = await prisma.product.findMany({
+      const products = await db.product.findMany({
         skip,
         take: limit,
         orderBy: {
@@ -76,7 +77,6 @@ export const getProducts = async (req: Request, res: Response) => {
         },
       });
   
-      
       res.status(200).json({
         success: true,
         data: products,
@@ -99,7 +99,7 @@ export const getProducts = async (req: Request, res: Response) => {
   
     try {
       // Check if product exists
-      const existingProduct = await prisma.product.findUnique({
+      const existingProduct = await db.product.findUnique({
         where: { id: Number(id) },
       });
   
@@ -108,7 +108,7 @@ export const getProducts = async (req: Request, res: Response) => {
       }
   
       // Delete product
-      await prisma.product.delete({
+      await db.product.delete({
         where: { id: Number(id) },
       });
   
@@ -147,7 +147,7 @@ export const getProducts = async (req: Request, res: Response) => {
     }
 
     // Check if product exists
-    const existingProduct = await prisma.product.findUnique({
+    const existingProduct = await db.product.findUnique({
       where: { id: Number(id) },
     });
 
@@ -157,7 +157,7 @@ export const getProducts = async (req: Request, res: Response) => {
 
     // Optional: Check if SKU is changing and if the new SKU already exists on a different product
     if (sku !== existingProduct.sku) {
-      const skuExists = await prisma.product.findUnique({
+      const skuExists = await db.product.findUnique({
         where: { sku },
       });
       if (skuExists) {
@@ -166,7 +166,7 @@ export const getProducts = async (req: Request, res: Response) => {
     }
 
     // Update product
-    const updatedProduct = await prisma.product.update({
+    const updatedProduct = await db.product.update({
       where: { id: Number(id) },
       data: {
         name,
@@ -191,14 +191,14 @@ export const getProducts = async (req: Request, res: Response) => {
 export const getProductSummary = async (req: Request, res: Response) => {
   try {
     // Total quantity
-    const totalQuantityResult = await prisma.product.aggregate({
+    const totalQuantityResult = await db.product.aggregate({
       _sum: {
         quantity: true,
       },
     });
 
  // Fetch all products with the fields you need
-const products:any = await prisma.product.findMany({
+const products:any = await db.product.findMany({
   select: {
     price: true,
     quantity: true,
@@ -219,7 +219,7 @@ const lowStockCount = products.filter(
 
 
     // Out of stock count (quantity = 0)
-    const outOfStockCount = await prisma.product.count({
+    const outOfStockCount = await db.product.count({
       where: {
         quantity: 0,
       },
